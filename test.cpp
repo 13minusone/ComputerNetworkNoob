@@ -21,6 +21,7 @@ typedef SOCKET socket_t;
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netinet/tcp.h>
 #include <unistd.h>
 #include <netdb.h>
 #include <signal.h>
@@ -146,9 +147,9 @@ void handle_client(socket_t client_sock) {
 
     // Add keep-alive for both sockets
     int keepalive = 1;
-    // int keepcnt = 3;
-    // int keepidle = 30;
-    // int keepintvl = 5;
+    int keepcnt = 3;
+    int keepidle = 30;
+    int keepintvl = 5;
 
     setsockopt(client_sock, SOL_SOCKET, SO_KEEPALIVE, (char*)&keepalive, sizeof(keepalive));
     setsockopt(server_sock, SOL_SOCKET, SO_KEEPALIVE, (char*)&keepalive, sizeof(keepalive));
@@ -157,8 +158,9 @@ void handle_client(socket_t client_sock) {
     setsockopt(client_sock, IPPROTO_TCP, TCP_NODELAY, (char*)&keepalive, sizeof(keepalive));
     setsockopt(server_sock, IPPROTO_TCP, TCP_NODELAY, (char*)&keepalive, sizeof(keepalive));
     #else
+    setsockopt(client_sock, SOL_SOCKET, SO_KEEPALIVE, &keepalive, sizeof(keepalive));
     setsockopt(client_sock, IPPROTO_TCP, TCP_KEEPCNT, &keepcnt, sizeof(int));
-    setsockopt(client_sock, IPPROTO_TCP, TCP_KEEPIDLE, &keepidle, sizeof(int));
+    setsockopt(client_sock, IPPROTO_TCP, TCP_KEEPALIVE, &keepidle, sizeof(int));
     setsockopt(client_sock, IPPROTO_TCP, TCP_KEEPINTVL, &keepintvl, sizeof(int));
     #endif
 
