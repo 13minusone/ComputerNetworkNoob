@@ -21,6 +21,7 @@ typedef SOCKET socket_t;
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netinet/tcp.h>
 #include <unistd.h>
 #include <netdb.h>
 #include <signal.h>
@@ -35,6 +36,17 @@ typedef int socket_t;
 #define TRANSFER_TIMEOUT_SEC 30
 #define SSL_BUFFER_SIZE 65536
 
+std::string blacklist[100];
+bool is_blacklisted(std::string url) {
+    for (int i = 0; i < 100; i++) 
+    if(blacklist[i] != "")
+    {
+        if (url.find(blacklist[i]) != std::string::npos) {
+            return true;
+        }
+    }
+    return false;
+}
 void cleanup_socket(socket_t sock) {
     if (sock >= 0) CLOSE_SOCKET(sock);
 }
@@ -117,6 +129,12 @@ void handle_client(socket_t client_sock) {
     } else if (method == "CONNECT") {
         port = "443";
     }
+    if(is_blacklisted(hostname))
+    {
+        std::cout << "Blocked: " << hostname << std::endl;
+        cleanup_socket(client_sock);
+        return;
+    }
 
     // Connect to remote server
     struct addrinfo hints = {}, *server_info;
@@ -146,9 +164,9 @@ void handle_client(socket_t client_sock) {
 
     // Add keep-alive for both sockets
     int keepalive = 1;
-    // int keepcnt = 3;
-    // int keepidle = 30;
-    // int keepintvl = 5;
+    int keepcnt = 3;
+    int keepidle = 30;
+    int keepintvl = 5;
 
     setsockopt(client_sock, SOL_SOCKET, SO_KEEPALIVE, (char*)&keepalive, sizeof(keepalive));
     setsockopt(server_sock, SOL_SOCKET, SO_KEEPALIVE, (char*)&keepalive, sizeof(keepalive));
@@ -157,8 +175,9 @@ void handle_client(socket_t client_sock) {
     setsockopt(client_sock, IPPROTO_TCP, TCP_NODELAY, (char*)&keepalive, sizeof(keepalive));
     setsockopt(server_sock, IPPROTO_TCP, TCP_NODELAY, (char*)&keepalive, sizeof(keepalive));
     #else
+    setsockopt(client_sock, SOL_SOCKET, SO_KEEPALIVE, &keepalive, sizeof(keepalive));
     setsockopt(client_sock, IPPROTO_TCP, TCP_KEEPCNT, &keepcnt, sizeof(int));
-    setsockopt(client_sock, IPPROTO_TCP, TCP_KEEPIDLE, &keepidle, sizeof(int));
+    setsockopt(client_sock, IPPROTO_TCP, TCP_KEEPALIVE, &keepidle, sizeof(int));
     setsockopt(client_sock, IPPROTO_TCP, TCP_KEEPINTVL, &keepintvl, sizeof(int));
     #endif
 
@@ -268,7 +287,7 @@ unsigned __stdcall client_thread(void* arg) {
 }
 #endif
 
-int main() {
+int main(int argc, char* argv[]) {
     initialize_winsock();
 
     #ifndef _WIN32
@@ -282,7 +301,10 @@ int main() {
         return 1;
     }
     #endif
-
+    for(int i = 1; i < argc; i++)
+    {
+        blacklist[i-1] = argv[i];
+    }
     socket_t server_sock = socket(AF_INET, SOCK_STREAM, 0);
     if (server_sock < 0) {
         std::cerr << "Failed to create server socket\n";
