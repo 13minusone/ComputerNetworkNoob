@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS=-O2 -DNDEBUG
+CFLAGS=-std=c++0x -O2 -DNDEBUG -pthread
 LDFLAGS=-lws2_32
 
 proxy: test.cpp
