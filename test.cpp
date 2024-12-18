@@ -3,7 +3,7 @@
 #include <sstream>
 #include <thread>
 #include <vector>
-
+#include "globalVar.h"
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -25,11 +25,37 @@ typedef int socket_t;
 #define MAX_BUFFER_SIZE 65536
 #define TRANSFER_TIMEOUT_SEC 5
 
-std::vector<std::string> blacklist;
+
+void print_blacklist() {
+    readFromSharedMemory(); // Sync with UI changes
+    if (blacklist.empty()) {
+        std::cout << "Blacklist is empty.\n";
+        return;
+    }
+    int count = 1;
+    std::cout << "\n=== Blocked Domains ===\n";
+    for (const auto& domain : blacklist) {
+        if (domain.empty()) continue;
+        std::cout << count << ". " << domain << "\n";
+        count++;
+    }
+    std::cout << "Total blocked domains: " << blacklist.size() << "\n";
+}
 
 bool check_blacklist(const std::string& url) {
-    for (const auto& domain : blacklist) {
+    readFromSharedMemory(); 
+    print_blacklist();
+    for (int i = 0; i < blacklist.size(); i++) {
+        std::string domain = blacklist[i];
+        for (int i = 0; i < domain.size(); i++) {
+            if (domain[i] == ' ' || domain[i] == '\r' || domain[i] == '\n') {
+                domain[i] = '\0';
+                break;
+            }
+        }
+        if (domain.empty()) continue;
         if (url.find(domain) != std::string::npos) {
+            std::cout << "Blocked domain found: " << domain << "\n";
             return true;
         }
     }
@@ -228,7 +254,7 @@ cleanup:
               << " | Reason: " << close_reason << std::endl;
 }
 
-int main(int argc, char* argv[]) {
+int main() {
 
     #ifdef _WIN32
     WSADATA wsa_data;
@@ -237,15 +263,6 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     #endif
-
-    // Store blacklist domains
-    if (argc < 1) {
-        std::cerr << "Usage: " << argv[0] << " <blacklist domain1> <blacklist domain2> ...\n";
-        return 1;
-    }
-    for (int i = 1; i < argc; i++) {
-        blacklist.push_back(argv[i]);
-    }
 
     socket_t server_sock = socket(AF_INET, SOCK_STREAM, 0);
     if (server_sock < 0) {
