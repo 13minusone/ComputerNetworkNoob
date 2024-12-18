@@ -17,12 +17,13 @@ typedef SOCKET socket_t;
 #include <unistd.h>
 #include <netdb.h>
 #include <signal.h>
+#include <fcntl.h>
 typedef int socket_t;
 #define CLOSE_SOCKET close
 #endif
 
 #define MAX_BUFFER_SIZE 65536
-#define TRANSFER_TIMEOUT_SEC 30
+#define TRANSFER_TIMEOUT_SEC 5
 
 std::vector<std::string> blacklist;
 
@@ -127,17 +128,39 @@ void handle_client(socket_t client_sock) {
         std::cout << "Established HTTPS tunnel to: " << hostname << ":" << port << std::endl;
         
         fd_set read_fds;
+        struct timeval timeout;
+        
         while (true) {
             FD_ZERO(&read_fds);
             FD_SET(client_sock, &read_fds);
             FD_SET(server_sock, &read_fds);
 
-            if (select(std::max(client_sock, server_sock) + 1, &read_fds, NULL, NULL, NULL) <= 0) break;
+            timeout.tv_sec = 1;  // 1 second timeout
+            timeout.tv_usec = 0;
+
+            int activity = select(std::max(client_sock, server_sock) + 1, &read_fds, NULL, NULL, &timeout);
+            
+            if (activity < 0) {
+                std::cout << "Select error for: " << hostname << std::endl;
+                break;
+            }
+            
+            // Check for disconnection during timeout
+            if (activity == 0) {
+                char test;
+                if (recv(client_sock, &test, 1, MSG_PEEK) == 0) {
+                    std::cout << "Client disconnected from: " << hostname << std::endl;
+                    break;
+                }
+                continue;
+            }
 
             if (FD_ISSET(client_sock, &read_fds)) {
                 bytes = recv(client_sock, buffer, MAX_BUFFER_SIZE - 1, 0);
-                if (bytes <= 0) break;
-                buffer[bytes] = '\0';  // Ensure null termination
+                if (bytes <= 0) {
+                    std::cout << "Client closed connection to: " << hostname << std::endl;
+                    break;
+                }
                 
                 size_t sent = 0;
                 while (sent < bytes) {
@@ -149,8 +172,10 @@ void handle_client(socket_t client_sock) {
 
             if (FD_ISSET(server_sock, &read_fds)) {
                 bytes = recv(server_sock, buffer, MAX_BUFFER_SIZE - 1, 0);
-                if (bytes <= 0) break;
-                buffer[bytes] = '\0';  // Ensure null termination
+                if (bytes <= 0) {
+                    std::cout << "Server closed connection to: " << hostname << std::endl;
+                    break;
+                }
                 
                 size_t sent = 0;
                 while (sent < bytes) {
@@ -204,10 +229,6 @@ cleanup:
 }
 
 int main(int argc, char* argv[]) {
-    if (argc < 3) {
-        std::cerr << "Usage: " << argv[0] << " <ip> <port> [blacklist_domains...]\n";
-        return 1;
-    }
 
     #ifdef _WIN32
     WSADATA wsa_data;
@@ -218,7 +239,11 @@ int main(int argc, char* argv[]) {
     #endif
 
     // Store blacklist domains
-    for (int i = 3; i < argc; i++) {
+    if (argc < 1) {
+        std::cerr << "Usage: " << argv[0] << " <blacklist domain1> <blacklist domain2> ...\n";
+        return 1;
+    }
+    for (int i = 1; i < argc; i++) {
         blacklist.push_back(argv[i]);
     }
 
@@ -230,8 +255,8 @@ int main(int argc, char* argv[]) {
 
     sockaddr_in server_addr = {};
     server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = inet_addr(argv[1]);
-    server_addr.sin_port = htons(atoi(argv[2]));
+    server_addr.sin_addr.s_addr = INADDR_ANY;
+    server_addr.sin_port = htons(8080);
 
     int opt = 1;
     setsockopt(server_sock, SOL_SOCKET, SO_REUSEADDR, (char*)&opt, sizeof(opt));
@@ -243,7 +268,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    std::cout << "Proxy server running on port " << argv[2] << std::endl;
+    
 
     while (true) {
         sockaddr_in client_addr;
