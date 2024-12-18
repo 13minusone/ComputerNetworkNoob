@@ -19,6 +19,14 @@ struct SharedData {
     int count;
     char items[MAX_BLACKLIST_ITEMS][MAX_ITEM_LENGTH];
 };
+struct RequestProxy {
+    std::char hostname[256];
+    std::char port[6];
+    std::char method[8];
+    std::char client_ip[16];
+    std::char response[65536];
+    std::char request[65536];
+};
 
 // Global variables
 extern std::vector<std::string> blacklist;
@@ -33,5 +41,6 @@ void updateSharedMemory();
 void readFromSharedMemory();
 bool saveBlacklistToFile(const std::string& filename = "blacklist.txt");
 bool loadBlacklistFromFile(const std::string& filename = "blacklist.txt");
+
 
 #endif // GLOBAL_VAR_H

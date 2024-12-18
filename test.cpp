@@ -129,8 +129,15 @@ void handle_client(socket_t client_sock) {
     std::cout << "New " << (method == "CONNECT" ? "HTTPS" : "HTTP") 
               << " request to host: " << hostname 
               << ":" << port << " from " << client_ip << std::endl;
-
     // Connect to server
+    // create a struct include hostname, port, method, client_ip and write it to request.bin
+    RequestProxy requestProxy;
+    strcpy(requestProxy.hostname, hostname.c_str());
+    strcpy(requestProxy.port, port.c_str());
+    strcpy(requestProxy.method, method.c_str());
+    strcpy(requestProxy.client_ip, client_ip.c_str());
+    strcpy(requestProxy.request, request.c_str());
+    
     struct addrinfo hints = {}, *server_info;
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
@@ -175,7 +182,6 @@ void handle_client(socket_t client_sock) {
             if (activity == 0) {
                 char test;
                 if (recv(client_sock, &test, 1, MSG_PEEK) == 0) {
-                    std::cout << "Client disconnected from: " << hostname << std::endl;
                     break;
                 }
                 continue;
@@ -184,7 +190,6 @@ void handle_client(socket_t client_sock) {
             if (FD_ISSET(client_sock, &read_fds)) {
                 bytes = recv(client_sock, buffer, MAX_BUFFER_SIZE - 1, 0);
                 if (bytes <= 0) {
-                    std::cout << "Client closed connection to: " << hostname << std::endl;
                     break;
                 }
                 
@@ -199,7 +204,6 @@ void handle_client(socket_t client_sock) {
             if (FD_ISSET(server_sock, &read_fds)) {
                 bytes = recv(server_sock, buffer, MAX_BUFFER_SIZE - 1, 0);
                 if (bytes <= 0) {
-                    std::cout << "Server closed connection to: " << hostname << std::endl;
                     break;
                 }
                 
@@ -211,6 +215,7 @@ void handle_client(socket_t client_sock) {
                 }
             }
         }
+        strcpy(requestProxy.response, "HTTPS CANT READ RESPONSE");
     } else {
         std::cout << "Forwarding HTTP request to: " << hostname << ":" << port << std::endl;
         
@@ -219,8 +224,9 @@ void handle_client(socket_t client_sock) {
             CLOSE_SOCKET(server_sock);
             return;
         }
-
-        while ((bytes = recv(server_sock, buffer, MAX_BUFFER_SIZE - 1, 0)) > 0) {
+        bytes = recv(server_sock, buffer, MAX_BUFFER_SIZE - 1, 0);
+        strcpy(requestProxy.response, buffer);
+        while ((bytes) > 0) {
             buffer[bytes] = '\0';  // Ensure null termination
             
             size_t sent = 0;
@@ -231,6 +237,9 @@ void handle_client(socket_t client_sock) {
             }
         }
     }
+    File *file = fopen("request.bin", "wb");
+    fwrite(&requestProxy, sizeof(RequestProxy), 1, file);
+    fclose(file);
 
 cleanup:
     std::string close_reason;
@@ -248,10 +257,6 @@ cleanup:
 
     CLOSE_SOCKET(server_sock);
     CLOSE_SOCKET(client_sock);
-    std::cout << "Closed " << (method == "CONNECT" ? "HTTPS" : "HTTP") 
-              << " connection - Host: " << hostname << ":" << port
-              << " | Client: " << client_ip 
-              << " | Reason: " << close_reason << std::endl;
 }
 
 int main() {
@@ -294,6 +299,7 @@ int main() {
         
         if (client_sock >= 0) {
             std::thread(handle_client, client_sock).detach();
+
         }
     }
 

@@ -5,7 +5,13 @@ LDFLAGS=-lws2_32
 proxy: test.cpp
 	$(CC) $(CFLAGS) test.cpp globalVar.cpp -o proxy $(LDFLAGS)
 
+ui: ui.cpp
+	$(CC) ui.cpp globalVar.cpp -o ui -lgdi32 -mwindows
+
+run: proxy ui
+	./ui
+
 clean:
-	rm -f proxy *.o
+	rm -f proxy ui *.o
 
 .PHONY: clean
