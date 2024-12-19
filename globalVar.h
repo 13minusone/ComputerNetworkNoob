@@ -20,12 +20,12 @@ struct SharedData {
     char items[MAX_BLACKLIST_ITEMS][MAX_ITEM_LENGTH];
 };
 struct RequestProxy {
-    std::char hostname[256];
-    std::char port[6];
-    std::char method[8];
-    std::char client_ip[16];
-    std::char response[65536];
-    std::char request[65536];
+    char hostname[256];
+    char port[6];
+    char method[8];
+    char client_ip[16];
+    char response[65536];
+    char request[65536];
 };
 
 // Global variables

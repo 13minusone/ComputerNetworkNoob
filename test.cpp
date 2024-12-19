@@ -69,6 +69,7 @@ void handle_client(socket_t client_sock) {
     std::string client_ip;
     
     // Get client IP
+    std::cout << 1 << std::endl;
     sockaddr_in addr;
     socklen_t addr_size = sizeof(addr);
     getpeername(client_sock, (struct sockaddr*)&addr, &addr_size);
@@ -131,12 +132,6 @@ void handle_client(socket_t client_sock) {
               << ":" << port << " from " << client_ip << std::endl;
     // Connect to server
     // create a struct include hostname, port, method, client_ip and write it to request.bin
-    RequestProxy requestProxy;
-    strcpy(requestProxy.hostname, hostname.c_str());
-    strcpy(requestProxy.port, port.c_str());
-    strcpy(requestProxy.method, method.c_str());
-    strcpy(requestProxy.client_ip, client_ip.c_str());
-    strcpy(requestProxy.request, request.c_str());
     
     struct addrinfo hints = {}, *server_info;
     hints.ai_family = AF_INET;
@@ -215,7 +210,6 @@ void handle_client(socket_t client_sock) {
                 }
             }
         }
-        strcpy(requestProxy.response, "HTTPS CANT READ RESPONSE");
     } else {
         std::cout << "Forwarding HTTP request to: " << hostname << ":" << port << std::endl;
         
@@ -225,7 +219,6 @@ void handle_client(socket_t client_sock) {
             return;
         }
         bytes = recv(server_sock, buffer, MAX_BUFFER_SIZE - 1, 0);
-        strcpy(requestProxy.response, buffer);
         while ((bytes) > 0) {
             buffer[bytes] = '\0';  // Ensure null termination
             
@@ -237,24 +230,8 @@ void handle_client(socket_t client_sock) {
             }
         }
     }
-    File *file = fopen("request.bin", "wb");
-    fwrite(&requestProxy, sizeof(RequestProxy), 1, file);
-    fclose(file);
 
 cleanup:
-    std::string close_reason;
-    if (bytes < 0) {
-        #ifdef _WIN32
-        close_reason = "Error: " + std::to_string(WSAGetLastError());
-        #else
-        close_reason = "Error: " + std::string(strerror(errno));
-        #endif
-    } else if (bytes == 0) {
-        close_reason = "Connection closed by peer";
-    } else {
-        close_reason = "Normal closure";
-    }
-
     CLOSE_SOCKET(server_sock);
     CLOSE_SOCKET(client_sock);
 }
@@ -289,7 +266,7 @@ int main() {
         CLOSE_SOCKET(server_sock);
         return 1;
     }
-
+    std::cout << "Proxy server started on port 8080\n";
     
 
     while (true) {
