@@ -15,6 +15,10 @@
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 HWND hOutputBox, hStartButton, hStopButton, hBlacklistBox, hAddBlacklistButton, hStatusBox, hBlacklistLabel, hOutputLabel;
+HWND hUserGuide;
+HWND hBlacklistStatus;
+
+
 HANDLE hWritePipe = NULL;
 HANDLE hReadPipe = NULL;
 PROCESS_INFORMATION pi = {};
@@ -115,6 +119,11 @@ void StopProxy() {
     }
 }
 
+void UpdateBlacklistStatus() {
+    std::string status = "Blacklist: " + std::to_string(blacklist.size()) + " domains blocked";
+    SetWindowText(hBlacklistStatus, status.c_str());
+}
+
 void AddBlacklist() {
     char buffer[4096];
     GetWindowText(hBlacklistBox, buffer, sizeof(buffer));
@@ -122,19 +131,20 @@ void AddBlacklist() {
     std::string item;
     blacklist.clear();
 
-    while (std::getline(ss, item)) {
+    while (ss >> item) {
         if (!item.empty()) {
             // Remove carriage return if present
-            if (!item.empty() && item.back() == '\r') {
+            if (item.back() == '\r' && item.back() == '\n') {
                 item.pop_back();
             }
-            blacklist.push_back(item);
         }
+        if (!item.empty()) 
+                blacklist.push_back(item);
+
     }
     
     saveBlacklistToFile("blacklist.txt");
-    UpdateStatus("Blacklist updated and saved.");
-    
+    UpdateBlacklistStatus();    
     if (proxyRunning) {
         StopProxy();
         StartProxy();
@@ -148,60 +158,79 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             SetClassLongPtr(hwnd, GCLP_HBRBACKGROUND, (LONG_PTR)hBrush);
 
             CreateWindow(
-                "STATIC", "Output:",
+                "STATIC", "Request:",
                 WS_CHILD | WS_VISIBLE | SS_CENTER,
-                10, 10, 100, 20,
+                10, 10, 100, 100,
                 hwnd, NULL, NULL, NULL
             );
 
            hOutputBox = CreateWindowEx(
-    WS_EX_CLIENTEDGE,
-    "EDIT", "",
-    WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | 
-    ES_AUTOVSCROLL | ES_READONLY | ES_NOHIDESEL,
-    10, 30, 600, 200,
-    hwnd, NULL, NULL, NULL
+                WS_EX_CLIENTEDGE,
+                "EDIT", "",
+                WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | 
+                ES_AUTOVSCROLL | ES_READONLY | ES_NOHIDESEL,
+                10, 30, 870, 200,
+                hwnd, NULL, NULL, NULL
 );
-oldOutputBoxProc = (WNDPROC)SetWindowLongPtr(hOutputBox, GWLP_WNDPROC, (LONG_PTR)OutputBoxProc);  
+            oldOutputBoxProc = (WNDPROC)SetWindowLongPtr(hOutputBox, GWLP_WNDPROC, (LONG_PTR)OutputBoxProc);  
             CreateWindow(
                 "STATIC", "Blacklist:",
                 WS_CHILD | WS_VISIBLE | SS_CENTER,
-                10, 240, 100, 20,
+                10, 240, 100, 100,
                 hwnd, NULL, NULL, NULL
             );
 
             hBlacklistBox = CreateWindow(
                 "EDIT", "",
                 WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL,
-                10, 260, 600, 150,
+                10, 260, 870, 200,
                 hwnd, NULL, NULL, NULL
             );
 
             hStartButton = CreateWindow(
                 "BUTTON", "Start",
                 WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
-                10, 430, 150, 40,
+                10, 480, 150, 40,
                 hwnd, (HMENU)START_BUTTON, NULL, NULL
             );
 
             hStopButton = CreateWindow(
                 "BUTTON", "Stop",
                 WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON | WS_DISABLED,
-                170, 430, 150, 40,
+                170, 480, 150, 40,
                 hwnd, (HMENU)STOP_BUTTON, NULL, NULL
             );
 
             hAddBlacklistButton = CreateWindow(
                 "BUTTON", "Update Blacklist",
                 WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
-                330, 430, 280, 40,
+                330, 480, 280, 40,
                 hwnd, (HMENU)ADD_BLACKLIST_BUTTON, NULL, NULL
             );
+
 
             hStatusBox = CreateWindow(
                 "STATIC", "Ready",
                 WS_CHILD | WS_VISIBLE | SS_LEFT,
-                10, 490, 600, 20,
+                10, 530, 900, 20,
+                hwnd, NULL, NULL, NULL
+            );
+
+            hBlacklistStatus = CreateWindow(
+                "STATIC", "Blacklist: 0 domains blocked",
+                WS_CHILD | WS_VISIBLE | SS_LEFT,
+                10, 555, 900, 20,
+                hwnd, NULL, NULL, NULL
+            );
+            hUserGuide = CreateWindow(
+                "STATIC",
+                "Proxy Control User Guide:\r\n"
+                "1. Click Start to activate the proxy and view incoming requests in the Request panel.\r\n"
+                "2. Add blocked domains to Blacklist.\r\n"
+                "3. Use 'Update Blacklist' button to modify blocked websites.\r\n"
+                "4. Click Stop to deactivate the proxy when needed.",
+                WS_CHILD | WS_VISIBLE | SS_LEFT,
+                10, 590, 900, 100,
                 hwnd, NULL, NULL, NULL
             );
 
@@ -222,17 +251,15 @@ oldOutputBoxProc = (WNDPROC)SetWindowLongPtr(hOutputBox, GWLP_WNDPROC, (LONG_PTR
             break;
         }
 
-        case WM_DESTROY:
-          if (proxyRunning) {
-        StopProxy();
-    }
+        case WM_DESTROY: {
+            if (proxyRunning) {
+                StopProxy();
+            }
+            clearBlacklistFile(); 
+            PostQuitMessage(0);
+            break;
+        }
     
-    // Save blacklist before exit
-    saveBlacklistToFile("blacklist.txt");
-    
-    PostQuitMessage(0);
-    return 0;
-
         default:
             return DefWindowProc(hwnd, uMsg, wParam, lParam);
     }
@@ -253,7 +280,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         "ProxyWindowClass",
         "Proxy Control",
         WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT, CW_USEDEFAULT, 640, 540,
+        CW_USEDEFAULT, CW_USEDEFAULT, 900, 800,
         NULL, NULL, hInstance, NULL
     );
 

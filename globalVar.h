@@ -18,6 +18,7 @@
 extern std::vector<std::string> blacklist;
 
 // Function declarations
+void clearBlacklistFile();
 bool saveBlacklistToFile(const std::string& filename = "blacklist.txt");
 bool loadBlacklistFromFile(const std::string& filename = "blacklist.txt");
 

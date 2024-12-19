@@ -29,11 +29,13 @@ bool loadBlacklistFromFile(const std::string& filename) {
     std::string line1, line;
     
     while (std::getline(file, line1)) {
+        if (line1.empty()) continue;
         line1 += '\n';
         line += line1;
     }
     std::istringstream iss(line);
     while(iss >> line) {
+        if (line.empty()) continue;
         // remove https:// and http://
         if (line.find("https://") != std::string::npos) {
             line = line.substr(8);
