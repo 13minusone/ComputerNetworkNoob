@@ -34,6 +34,12 @@ bool loadBlacklistFromFile(const std::string& filename) {
     }
     std::istringstream iss(line);
     while(iss >> line) {
+        // remove https:// and http://
+        if (line.find("https://") != std::string::npos) {
+            line = line.substr(8);
+        } else if (line.find("http://") != std::string::npos) {
+            line = line.substr(7);
+        }
         blacklist.push_back(line);
     }
     return true;
