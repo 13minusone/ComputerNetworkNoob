@@ -1,9 +1,24 @@
-# ComputerNetworkNoob
+#Version of GCC
+First, you need to have a version of GCC installed on your computer. You can check if you have it installed by running the following command in your terminal:
+```bash
+gcc --version
+```
+The version of GCC should at least be GCC 8+ to run the code in this repository.
 
-cd to a existing folder that have the code
+## Compiling the code
 
-run make or g++ -O2 -DNDEBUG test.cpp -o proxy -lws2_32
+Second, there are two ways to compile the code in this repository. The first way is to use the Makefile provided in the repository. You need to check if you have make installed on your computer by running the following command in your terminal:
+```bash
+make --version
+```
+If you have make installed, you can compile the code by running the following command in your terminal:
+```bash
+make run
+```
 
-then open proxy.exe to run proxy
-
-then config in your own computer to Proxy IP address: 127.0.0.1 and Port: 8080
+The second way is to compile the code manually. You can compile the code by running the following commands in your terminal:
+```bash
+g++ -std=c++0x -O2 -DNDEBUG -pthread test.cpp globalVar.cpp -o proxy -lws2_32
+g++ ui.cpp globalVar.cpp -o ui -lgdi32 -mwindows
+./ui
+```

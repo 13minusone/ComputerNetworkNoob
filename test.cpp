@@ -112,7 +112,8 @@ void handle_client(socket_t client_sock) {
     // Add connection request logging
     std::cout << "New " << (method == "CONNECT" ? "HTTPS" : "HTTP") 
               << " request to host: " << hostname 
-              << ":" << port << " from " << client_ip << std::endl;
+              << ":" << port  << std::endl;
+    std::cout << "Request: " << request << std::endl;
     // Connect to server
     // create a struct include hostname, port, method, client_ip and write it to request.bin
     
@@ -136,7 +137,6 @@ void handle_client(socket_t client_sock) {
 
     if (method == "CONNECT") {
         send(client_sock, "HTTP/1.1 200 Connection Established\r\n\r\n", 39, 0);
-        std::cout << "Established HTTPS tunnel to: " << hostname << ":" << port << std::endl;
         
         fd_set read_fds;
         struct timeval timeout;
@@ -194,7 +194,6 @@ void handle_client(socket_t client_sock) {
             }
         }
     } else {
-        std::cout << "Forwarding HTTP request to: " << hostname << ":" << port << std::endl;
         
         if (send(server_sock, request.c_str(), request.length(), 0) <= 0) {
             CLOSE_SOCKET(client_sock);

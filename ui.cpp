@@ -280,7 +280,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         "ProxyWindowClass",
         "Proxy Control",
         WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT, CW_USEDEFAULT, 900, 800,
+        CW_USEDEFAULT, CW_USEDEFAULT, 900, 720,
         NULL, NULL, hInstance, NULL
     );
 
