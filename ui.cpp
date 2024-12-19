@@ -132,8 +132,7 @@ void AddBlacklist() {
         }
     }
     
-    updateSharedMemory();
-    saveBlacklistToFile();
+    saveBlacklistToFile("blacklist.txt");
     UpdateStatus("Blacklist updated and saved.");
     
     if (proxyRunning) {
@@ -229,17 +228,7 @@ oldOutputBoxProc = (WNDPROC)SetWindowLongPtr(hOutputBox, GWLP_WNDPROC, (LONG_PTR
     }
     
     // Save blacklist before exit
-    saveBlacklistToFile();
-    
-    // Cleanup shared memory
-    if (pShared) {
-        UnmapViewOfFile(pShared);
-        pShared = NULL;
-    }
-    if (hMapFile) {
-        CloseHandle(hMapFile);
-        hMapFile = NULL;
-    }
+    saveBlacklistToFile("blacklist.txt");
     
     PostQuitMessage(0);
     return 0;
@@ -284,6 +273,5 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         DispatchMessage(&msg);
     }
 
-    cleanupSharedMemory();
     return msg.wParam;
 }

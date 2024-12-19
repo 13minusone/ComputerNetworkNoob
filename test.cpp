@@ -26,25 +26,9 @@ typedef int socket_t;
 #define TRANSFER_TIMEOUT_SEC 5
 
 
-void print_blacklist() {
-    readFromSharedMemory(); // Sync with UI changes
-    if (blacklist.empty()) {
-        std::cout << "Blacklist is empty.\n";
-        return;
-    }
-    int count = 1;
-    std::cout << "\n=== Blocked Domains ===\n";
-    for (const auto& domain : blacklist) {
-        if (domain.empty()) continue;
-        std::cout << count << ". " << domain << "\n";
-        count++;
-    }
-    std::cout << "Total blocked domains: " << blacklist.size() << "\n";
-}
-
 bool check_blacklist(const std::string& url) {
-    readFromSharedMemory(); 
-    print_blacklist();
+    loadBlacklistFromFile("blacklist.txt");
+
     for (int i = 0; i < blacklist.size(); i++) {
         std::string domain = blacklist[i];
         for (int i = 0; i < domain.size(); i++) {
@@ -69,7 +53,6 @@ void handle_client(socket_t client_sock) {
     std::string client_ip;
     
     // Get client IP
-    std::cout << 1 << std::endl;
     sockaddr_in addr;
     socklen_t addr_size = sizeof(addr);
     getpeername(client_sock, (struct sockaddr*)&addr, &addr_size);
