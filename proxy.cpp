@@ -124,7 +124,7 @@ void handle_client(socket_t client_sock) {
     print_active_domain();
     std::cout << "New " << (method == "CONNECT" ? "HTTPS" : "HTTP") 
               << " request to host: " << hostname 
-              << ":" << port << " from " << client_ip << std::endl;
+              << ":" << port  << std::endl;
     std::cout << "Request: " << request << std::endl;
     // Connect to server
     // create a struct include hostname, port, method, client_ip and write it to request.bin
