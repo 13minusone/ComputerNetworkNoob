@@ -1,40 +1,37 @@
 #include <winsock2.h>
 #include <windows.h>
-#include "globalVar.h"
+#include "../include/globalVar.h"
 #include <iostream>
 #include <string>
 #include <vector>
 #include <sstream>
 #include <process.h>
 #include <thread>
-
 #include <algorithm>
 #include <fstream>
 #define START_BUTTON 1
 #define STOP_BUTTON 2
 #define ADD_BLACKLIST_BUTTON 3
-
 #define HOST_RUNNING_TIMER 2
 #define HOST_RUNNING_INTERVAL 1000 
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 HWND hOutputBox, hStartButton, hStopButton, hBlacklistBox, hAddBlacklistButton, hStatusBox, hBlacklistLabel, hOutputLabel;
-HWND hUserGuide;
-HWND hBlacklistStatus;
+HWND hUserGuide, hBlacklistStatus, hHostRunningBox, hHostRunningLabel;
 
-HWND hHostRunningBox;
-HWND hHostRunningLabel;
 bool hostRunningAutoScroll = true;
-WNDPROC oldHostRunningBoxProc;
-HANDLE hWritePipe = NULL;
-HANDLE hReadPipe = NULL;
-PROCESS_INFORMATION pi = {};
-bool proxyRunning = false;
 bool autoScroll = true;
-std::string outputBuffer, hostRunningBuffer;
+bool proxyRunning = false;
 
 WNDPROC oldOutputBoxProc;
+WNDPROC oldHostRunningBoxProc;
+
+HANDLE hWritePipe = NULL;
+HANDLE hReadPipe = NULL;
+
+PROCESS_INFORMATION pi = {};
+std::string outputBuffer, hostRunningBuffer;
 
 LRESULT CALLBACK HostRunningBoxProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
@@ -110,7 +107,7 @@ void StartProxy() {
     si.dwFlags |= STARTF_USESTDHANDLES;
 
     if (CreateProcess(
-            "proxy.exe", NULL, NULL, NULL, TRUE,
+            "bin\\proxy.exe", NULL, NULL, NULL, TRUE,
             CREATE_NO_WINDOW, NULL, NULL, &si, &pi)) {
         proxyRunning = true;
         CreateThread(NULL, 0, ReadPipeThread, hReadPipe, 0, NULL);
@@ -161,7 +158,7 @@ void AddBlacklist() {
 
     }
     
-    saveBlacklistToFile("blacklist.txt");
+    saveBlacklistToFile(folderName + "cache//blacklist.txt");
     UpdateBlacklistStatus();    
     if (proxyRunning) {
         StopProxy();
@@ -170,8 +167,9 @@ void AddBlacklist() {
 }
 
 void loadHostRunningFromFile() {
-    std::ifstream file("Host running.txt");
-    std::fstream fileCache("cache.txt", std::ios::in);
+    std::ifstream file(folderName + "cache/Host running.txt");
+    std::fstream fileCache(folderName + "cache/cache.txt", std::ios::in);
+
     if (!fileCache.is_open()) {
         return;
     }
@@ -202,7 +200,7 @@ void loadHostRunningFromFile() {
                 line1 += '\n';
                 line += line1;
         }
-        std::ofstream fileCache("cache.txt");
+        std::ofstream fileCache(folderName + "cache/cache.txt");
         std::istringstream isss(line);
         while(isss >>line){
             if (line.empty()) continue;
@@ -354,8 +352,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             if (proxyRunning) {
                 StopProxy();
             }
-            clearFile("host running.txt");
-            clearFile("blacklist.txt");
+            clearFile(folderName + "cache//Host running.txt");
+            clearFile(folderName + "cache//blacklist.txt");
+            clearFile(folderName + "cache//cache.txt");
             PostQuitMessage(0);
             break;
         }
@@ -391,7 +390,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     ShowWindow(hwnd, nCmdShow);
     UpdateWindow(hwnd);
     SetTimer(hwnd, HOST_RUNNING_TIMER, HOST_RUNNING_INTERVAL, NULL);
-    loadBlacklistFromFile();
+    loadBlacklistFromFile("..//ComputerNetWorkNoob//cache//blacklist.txt"); 
         MSG msg = {};
 
 

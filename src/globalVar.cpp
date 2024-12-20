@@ -1,9 +1,11 @@
-#include "globalVar.h"
+#include "../include/globalVar.h"
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
+
 std::vector<std::string> blacklist;
+std::string folderName = "..//ComputerNetworkNoob//";
 
 void clearFile(std::string fileName) {
     std::ofstream file(fileName, std::ofstream::out | std::ofstream::trunc);
@@ -11,7 +13,7 @@ void clearFile(std::string fileName) {
 }
 
 
-bool saveBlacklistToFile(const std::string& filename) {
+bool saveBlacklistToFile(std::string filename) {
     std::ofstream file(filename);
     if (!file) return false;
     
@@ -22,7 +24,7 @@ bool saveBlacklistToFile(const std::string& filename) {
     return true;
 } 
 
-bool loadBlacklistFromFile(const std::string& filename) {
+bool loadBlacklistFromFile(std::string filename) {
     std::fstream file(filename, std::ios::in);
     if (!file) return false;
 

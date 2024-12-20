@@ -5,7 +5,7 @@
 #include <sstream>
 #include <thread>
 #include <vector>
-#include "globalVar.h"
+#include "../include/globalVar.h"
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -30,7 +30,7 @@ typedef int socket_t;
 std::set<std::string> active_domains; 
 
 void print_active_domain(void){
-    std::fstream file("Host running.txt", std::ios::out);
+    std::fstream file(folderName + "cache//Host running.txt", std::ios::out);
     for (auto it = active_domains.begin(); it != active_domains.end(); ++it) {
         file << *it << '\n';
     }
@@ -38,7 +38,7 @@ void print_active_domain(void){
 }
 
 bool check_blacklist(const std::string& url) {
-    loadBlacklistFromFile("blacklist.txt");
+    loadBlacklistFromFile(folderName + "//cache//blacklist.txt");
 
     for (int i = 0; i < blacklist.size(); i++) {
         std::string domain = blacklist[i];

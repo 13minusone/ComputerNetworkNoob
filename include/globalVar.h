@@ -16,10 +16,11 @@
 
 // Global variables
 extern std::vector<std::string> blacklist;
+extern std::string folderName;
 
 // Function declarations
 void clearFile(std::string fileName);
-bool saveBlacklistToFile(const std::string& filename = "blacklist.txt");
-bool loadBlacklistFromFile(const std::string& filename = "blacklist.txt");
+bool saveBlacklistToFile( std::string filename);
+bool loadBlacklistFromFile(std::string filename);
 
 #endif 
