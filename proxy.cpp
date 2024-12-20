@@ -1,4 +1,6 @@
 #include <iostream>
+#include <set>
+#include <fstream>
 #include <string>
 #include <sstream>
 #include <thread>
@@ -25,6 +27,15 @@ typedef int socket_t;
 #define MAX_BUFFER_SIZE 65536
 #define TRANSFER_TIMEOUT_SEC 5
 
+std::set<std::string> active_domains; 
+
+void print_active_domain(void){
+    std::fstream file("Host running.txt", std::ios::out);
+    for (auto it = active_domains.begin(); it != active_domains.end(); ++it) {
+        file << *it << '\n';
+    }
+    file.close();
+}
 
 bool check_blacklist(const std::string& url) {
     loadBlacklistFromFile("blacklist.txt");
@@ -102,17 +113,19 @@ void handle_client(socket_t client_sock) {
         hostname = host.substr(0, colon_pos);
         port = host.substr(colon_pos + 1);
     }
-
+    
     if (check_blacklist(hostname)) {
         std::cout << "Blocked: " << hostname << std::endl;
         CLOSE_SOCKET(client_sock);
         return;
     }
 
-    // Add connection request logging
+    active_domains.insert(hostname);
+    print_active_domain();
     std::cout << "New " << (method == "CONNECT" ? "HTTPS" : "HTTP") 
               << " request to host: " << hostname 
               << ":" << port << " from " << client_ip << std::endl;
+    std::cout << "Request: " << request << std::endl;
     // Connect to server
     // create a struct include hostname, port, method, client_ip and write it to request.bin
     
@@ -136,27 +149,25 @@ void handle_client(socket_t client_sock) {
 
     if (method == "CONNECT") {
         send(client_sock, "HTTP/1.1 200 Connection Established\r\n\r\n", 39, 0);
-        std::cout << "Established HTTPS tunnel to: " << hostname << ":" << port << std::endl;
         
         fd_set read_fds;
         struct timeval timeout;
         
         while (true) {
+            
             FD_ZERO(&read_fds);
             FD_SET(client_sock, &read_fds);
             FD_SET(server_sock, &read_fds);
 
-            timeout.tv_sec = 1;  // 1 second timeout
+            timeout.tv_sec = 1;  
             timeout.tv_usec = 0;
 
             int activity = select(std::max(client_sock, server_sock) + 1, &read_fds, NULL, NULL, &timeout);
             
             if (activity < 0) {
-                std::cout << "Select error for: " << hostname << std::endl;
                 break;
             }
             
-            // Check for disconnection during timeout
             if (activity == 0) {
                 char test;
                 if (recv(client_sock, &test, 1, MSG_PEEK) == 0) {
@@ -194,7 +205,6 @@ void handle_client(socket_t client_sock) {
             }
         }
     } else {
-        std::cout << "Forwarding HTTP request to: " << hostname << ":" << port << std::endl;
         
         if (send(server_sock, request.c_str(), request.length(), 0) <= 0) {
             CLOSE_SOCKET(client_sock);
@@ -203,8 +213,7 @@ void handle_client(socket_t client_sock) {
         }
         bytes = recv(server_sock, buffer, MAX_BUFFER_SIZE - 1, 0);
         while ((bytes) > 0) {
-            buffer[bytes] = '\0';  // Ensure null termination
-            
+            buffer[bytes] = '\0';  
             size_t sent = 0;
             while (sent < bytes) {
                 int n = send(client_sock, buffer + sent, bytes - sent, 0);
@@ -213,8 +222,10 @@ void handle_client(socket_t client_sock) {
             }
         }
     }
-
 cleanup:
+    active_domains.erase(hostname);
+    print_active_domain();
+
     CLOSE_SOCKET(server_sock);
     CLOSE_SOCKET(client_sock);
 }
@@ -256,11 +267,11 @@ int main() {
         sockaddr_in client_addr;
         socklen_t client_len = sizeof(client_addr);
         socket_t client_sock = accept(server_sock, (struct sockaddr*)&client_addr, &client_len);
-        
+
         if (client_sock >= 0) {
             std::thread(handle_client, client_sock).detach();
-
         }
+        print_active_domain();
     }
 
     CLOSE_SOCKET(server_sock);

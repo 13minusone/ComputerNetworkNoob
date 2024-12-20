@@ -2,7 +2,7 @@
 #define GLOBAL_VAR_H
 
 #ifdef _WIN32
-#include <winsock2.h>  // Must be first
+#include <winsock2.h>  
 #include <windows.h>
 #endif
 
@@ -18,8 +18,8 @@
 extern std::vector<std::string> blacklist;
 
 // Function declarations
-void clearBlacklistFile();
+void clearFile(std::string fileName);
 bool saveBlacklistToFile(const std::string& filename = "blacklist.txt");
 bool loadBlacklistFromFile(const std::string& filename = "blacklist.txt");
 
-#endif // GLOBAL_VAR_H
+#endif 

@@ -8,9 +8,14 @@
 #include <process.h>
 #include <thread>
 
+#include <algorithm>
+#include <fstream>
 #define START_BUTTON 1
 #define STOP_BUTTON 2
 #define ADD_BLACKLIST_BUTTON 3
+
+#define HOST_RUNNING_TIMER 2
+#define HOST_RUNNING_INTERVAL 1000 
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
@@ -18,17 +23,32 @@ HWND hOutputBox, hStartButton, hStopButton, hBlacklistBox, hAddBlacklistButton, 
 HWND hUserGuide;
 HWND hBlacklistStatus;
 
-
+HWND hHostRunningBox;
+HWND hHostRunningLabel;
+bool hostRunningAutoScroll = true;
+WNDPROC oldHostRunningBoxProc;
 HANDLE hWritePipe = NULL;
 HANDLE hReadPipe = NULL;
 PROCESS_INFORMATION pi = {};
 bool proxyRunning = false;
-
 bool autoScroll = true;
-WNDPROC oldOutputBoxProc;
-std::string outputBuffer;
+std::string outputBuffer, hostRunningBuffer;
 
-// Replace OutputBoxProc function with:
+WNDPROC oldOutputBoxProc;
+
+LRESULT CALLBACK HostRunningBoxProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    switch (msg) {
+        case WM_VSCROLL:
+        case WM_MOUSEWHEEL: {
+            SCROLLINFO si = {sizeof(SCROLLINFO)};
+            si.fMask = SIF_ALL;
+            GetScrollInfo(hwnd, SB_VERT, &si);
+            hostRunningAutoScroll = (si.nPos + (int)si.nPage >= si.nMax - 20);
+            break;
+        }
+    }
+    return CallWindowProc(oldHostRunningBoxProc, hwnd, msg, wParam, lParam);
+}
 
 LRESULT CALLBACK OutputBoxProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
@@ -38,7 +58,6 @@ LRESULT CALLBACK OutputBoxProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
             si.fMask = SIF_ALL;
             GetScrollInfo(hwnd, SB_VERT, &si);
             
-            // Calculate if we're near bottom (within 20 pixels)
             autoScroll = (si.nPos + (int)si.nPage >= si.nMax - 20);
             break;
         }
@@ -55,7 +74,6 @@ DWORD WINAPI ReadPipeThread(LPVOID param) {
     HANDLE hReadPipe = (HANDLE)param;
     char buffer[4096];
     DWORD bytesRead;
-
     while (ReadFile(hReadPipe, buffer, sizeof(buffer) - 1, &bytesRead, NULL) && bytesRead > 0) {
         buffer[bytesRead] = '\0';
         outputBuffer += buffer;
@@ -74,6 +92,7 @@ DWORD WINAPI ReadPipeThread(LPVOID param) {
     }
     return 0;
 }
+
 
 void StartProxy() {
     if (proxyRunning) return;
@@ -133,7 +152,6 @@ void AddBlacklist() {
 
     while (ss >> item) {
         if (!item.empty()) {
-            // Remove carriage return if present
             if (item.back() == '\r' && item.back() == '\n') {
                 item.pop_back();
             }
@@ -151,10 +169,73 @@ void AddBlacklist() {
     }
 }
 
+void loadHostRunningFromFile() {
+    std::ifstream file("Host running.txt");
+    std::fstream fileCache("cache.txt", std::ios::in);
+    if (!fileCache.is_open()) {
+        return;
+    }
+    std::string cache_string;
+    cache_string.clear();
+
+    if (file.is_open()) {
+        hostRunningBuffer.clear();
+        std::string line1, line;
+        line.clear();
+        line1.clear();
+
+         // cahce the host running buffer
+        while (std::getline(fileCache, line1)) {
+            if (line1.empty()) continue;
+                line1 += '\n';
+                line += line1;
+        }
+        fileCache.close();
+        std::istringstream iss(line);
+        while(iss >>line){
+            cache_string += line + "\r\n";
+        }
+        line.clear();
+        line1.clear();
+        while (std::getline(file, line1)) {
+            if (line1.empty()) continue;
+                line1 += '\n';
+                line += line1;
+        }
+        std::ofstream fileCache("cache.txt");
+        std::istringstream isss(line);
+        while(isss >>line){
+            if (line.empty()) continue;
+            fileCache << line << '\n';
+            hostRunningBuffer += line + "\r\n";
+        }        
+        
+        fileCache.close();
+        file.close();
+
+        if (IsWindow(hHostRunningBox) && hostRunningBuffer != cache_string) {
+            SendMessage(hHostRunningBox, WM_SETREDRAW, FALSE, 0);
+            SetWindowText(hHostRunningBox, hostRunningBuffer.c_str());
+            if (hostRunningAutoScroll) {
+                int lastLine = SendMessage(hHostRunningBox, EM_GETLINECOUNT, 0, 0) - 1;
+                SendMessage(hHostRunningBox, EM_LINESCROLL, 0, lastLine);
+            }
+            SendMessage(hHostRunningBox, WM_SETREDRAW, TRUE, 0);
+            InvalidateRect(hHostRunningBox, NULL, TRUE);
+        }
+
+    }
+}
+
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     switch (uMsg) {
+        case WM_TIMER:
+            if (wParam == HOST_RUNNING_TIMER) {
+                loadHostRunningFromFile();
+            }
+        break;
         case WM_CREATE: {
-            HBRUSH hBrush = CreateSolidBrush(RGB(240, 248, 255)); // Light blue background
+            HBRUSH hBrush = CreateSolidBrush(RGB(240, 248, 255));
             SetClassLongPtr(hwnd, GCLP_HBRBACKGROUND, (LONG_PTR)hBrush);
 
             CreateWindow(
@@ -169,10 +250,28 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                 "EDIT", "",
                 WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | 
                 ES_AUTOVSCROLL | ES_READONLY | ES_NOHIDESEL,
-                10, 30, 870, 200,
+                10, 30, 550, 200,
                 hwnd, NULL, NULL, NULL
-);
+            );
+
+            hHostRunningLabel = CreateWindow(
+                "STATIC", "Host Running:",
+                WS_CHILD | WS_VISIBLE | SS_LEFT,
+                560, 10, 290, 20,
+                hwnd, NULL, NULL, NULL
+            );
+
+            hHostRunningBox = CreateWindowEx(
+                WS_EX_CLIENTEDGE,
+                "EDIT", "",
+                WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY,
+                560, 30, 320, 200,
+                hwnd, NULL, NULL, NULL
+            );
+
+            oldHostRunningBoxProc = (WNDPROC)SetWindowLongPtr(hHostRunningBox, GWLP_WNDPROC, (LONG_PTR)HostRunningBoxProc);
             oldOutputBoxProc = (WNDPROC)SetWindowLongPtr(hOutputBox, GWLP_WNDPROC, (LONG_PTR)OutputBoxProc);  
+            
             CreateWindow(
                 "STATIC", "Blacklist:",
                 WS_CHILD | WS_VISIBLE | SS_CENTER,
@@ -255,7 +354,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             if (proxyRunning) {
                 StopProxy();
             }
-            clearBlacklistFile(); 
+            clearFile("host running.txt");
+            clearFile("blacklist.txt");
             PostQuitMessage(0);
             break;
         }
@@ -276,13 +376,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     RegisterClass(&wc);
 
-    HWND hwnd = CreateWindow(
-        "ProxyWindowClass",
-        "Proxy Control",
-        WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT, CW_USEDEFAULT, 900, 800,
-        NULL, NULL, hInstance, NULL
-    );
+  HWND hwnd = CreateWindow(
+    "ProxyWindowClass",
+    "Proxy Control",
+    WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, // Remove WS_MAXIMIZEBOX and WS_THICKFRAME
+    CW_USEDEFAULT, CW_USEDEFAULT, 900, 800,
+    NULL, NULL, hInstance, NULL
+);
 
     if (hwnd == NULL) {
         return 0;
@@ -290,7 +390,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     ShowWindow(hwnd, nCmdShow);
     UpdateWindow(hwnd);
-
+    SetTimer(hwnd, HOST_RUNNING_TIMER, HOST_RUNNING_INTERVAL, NULL);
     loadBlacklistFromFile();
         MSG msg = {};
 

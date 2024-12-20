@@ -2,10 +2,11 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <string>
 std::vector<std::string> blacklist;
 
-void clearBlacklistFile() {
-    std::ofstream file("blacklist.txt", std::ofstream::out | std::ofstream::trunc);
+void clearFile(std::string fileName) {
+    std::ofstream file(fileName, std::ofstream::out | std::ofstream::trunc);
     file.close();
 }
 
