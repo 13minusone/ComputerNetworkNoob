@@ -18,7 +18,7 @@ make run
 
 The second way is to compile the code manually. You can compile the code by running the following commands in your terminal:
 ```bash
-g++ -std=c++0x -O2 -DNDEBUG -pthread test.cpp globalVar.cpp -o proxy -lws2_32
-g++ ui.cpp globalVar.cpp -o ui -lgdi32 -mwindows
-./ui
+g++ -std=c++0x -O2 -DNDEBUG -pthread src/proxy.cpp src/globalVar.cpp -o bin/proxy -lws2_32
+g++ src/ui.cpp src/globalVar.cpp -o bin/app.exe -lgdi32 -mwindows
+./bin/app.exe
 ```
