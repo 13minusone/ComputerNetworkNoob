@@ -321,13 +321,15 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             );
             hUserGuide = CreateWindow(
                 "STATIC",
-                "Proxy Control User Guide:\r\n"
+                "!!!You must configure the proxy settings before running this program !!!\r\n"
+                "Open Windows Settings --> Network and Internet --> Proxy, and set the IP address to 127.0.0.1 and port to 8080\r\n\n"
+                "Proxy System Guide: \r\n"
                 "1. Click Start to activate the proxy and view incoming requests in the Request panel.\r\n"
                 "2. Add blocked domains to Blacklist.\r\n"
                 "3. Use 'Update Blacklist' button to modify blocked websites.\r\n"
                 "4. Click Stop to deactivate the proxy when needed.",
                 WS_CHILD | WS_VISIBLE | SS_LEFT,
-                10, 590, 900, 100,
+                10, 590, 900, 150,
                 hwnd, NULL, NULL, NULL
             );
 
@@ -377,7 +379,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
   HWND hwnd = CreateWindow(
     "ProxyWindowClass",
-    "Proxy Control",
+    "Proxy System",
     WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, // Remove WS_MAXIMIZEBOX and WS_THICKFRAME
     CW_USEDEFAULT, CW_USEDEFAULT, 900, 800,
     NULL, NULL, hInstance, NULL
