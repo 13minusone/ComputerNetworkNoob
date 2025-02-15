@@ -1,4 +1,5 @@
 #Version of GCC
+
 First, you need to have a version of GCC installed on your computer. You can check if you have it installed by running the following command in your terminal:
 ```bash
 gcc --version
